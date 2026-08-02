@@ -172,6 +172,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -222,9 +225,6 @@
       },
       "tropical_night_mode": {
         "name": "열대야 모드"
-      },
-      "zone_target_temperature": {
-        "name": "구역 목표 온도"
       }
     },
     "select": {
@@ -791,9 +791,6 @@
           "cupboard": "옷장 보관"
         }
       },
-      "zone_mode": {
-        "name": "구역 모드"
-      },
       "watertank_light_color": {
         "name": "물탱크 조명 색상",
         "state": {
@@ -1233,9 +1230,6 @@
           "icestatus_run": "제빙 중"
         }
       },
-      "zone_temperature": {
-        "name": "구역 온도"
-      },
       "watertank_full_alarm_status": {
         "name": "물통 가득 참 알림 상태"
       },
@@ -1432,9 +1426,6 @@
       },
       "wrinkle_prevent": {
         "name": "구김 방지"
-      },
-      "zone_power": {
-        "name": "구역 전원"
       },
       "away_mode": {
         "name": "외출 모드"

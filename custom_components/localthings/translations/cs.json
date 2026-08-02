@@ -172,6 +172,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zóna 1"
       }
     },
     "fan": {
@@ -222,9 +225,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropický noční režim"
-      },
-      "zone_target_temperature": {
-        "name": "Požadovaná teplota zóny"
       }
     },
     "select": {
@@ -791,9 +791,6 @@
           "cupboard": "Do skříně"
         }
       },
-      "zone_mode": {
-        "name": "Režim zóny"
-      },
       "watertank_light_color": {
         "name": "Barva osvětlení nádržky na vodu",
         "state": {
@@ -1233,9 +1230,6 @@
           "icestatus_run": "Vyrábí led"
         }
       },
-      "zone_temperature": {
-        "name": "Teplota zóny"
-      },
       "watertank_full_alarm_status": {
         "name": "Stav alarmu plné nádržky na vodu"
       },
@@ -1432,9 +1426,6 @@
       },
       "wrinkle_prevent": {
         "name": "Ochrana proti pomačkání"
-      },
-      "zone_power": {
-        "name": "Napájení zóny"
       },
       "away_mode": {
         "name": "Režim nepřítomnosti"

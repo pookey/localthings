@@ -172,6 +172,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -222,9 +225,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropische nachtmodus"
-      },
-      "zone_target_temperature": {
-        "name": "Doeltemperatuur zone"
       }
     },
     "select": {
@@ -791,9 +791,6 @@
           "cupboard": "Kastdroog"
         }
       },
-      "zone_mode": {
-        "name": "Zonemodus"
-      },
       "watertank_light_color": {
         "name": "Kleur van het waterreservoirlicht",
         "state": {
@@ -1233,9 +1230,6 @@
           "icestatus_run": "IJs maken"
         }
       },
-      "zone_temperature": {
-        "name": "Zonetemperatuur"
-      },
       "watertank_full_alarm_status": {
         "name": "Status alarm waterreservoir vol"
       },
@@ -1432,9 +1426,6 @@
       },
       "wrinkle_prevent": {
         "name": "Kreukpreventie"
-      },
-      "zone_power": {
-        "name": "Zonevoeding"
       },
       "away_mode": {
         "name": "Afwezigheidsmodus"

@@ -172,6 +172,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -222,9 +225,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropical night mode"
-      },
-      "zone_target_temperature": {
-        "name": "Zone target temperature"
       }
     },
     "select": {
@@ -791,9 +791,6 @@
           "cupboard": "Cupboard"
         }
       },
-      "zone_mode": {
-        "name": "Zone mode"
-      },
       "watertank_light_color": {
         "name": "Water tank light color",
         "state": {
@@ -1233,9 +1230,6 @@
           "icestatus_run": "Making ice"
         }
       },
-      "zone_temperature": {
-        "name": "Zone temperature"
-      },
       "watertank_full_alarm_status": {
         "name": "Water tank full alarm status"
       },
@@ -1432,9 +1426,6 @@
       },
       "wrinkle_prevent": {
         "name": "Wrinkle prevent"
-      },
-      "zone_power": {
-        "name": "Zone power"
       },
       "away_mode": {
         "name": "Away mode"
