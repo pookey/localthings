@@ -155,6 +155,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zóna 1"
       }
     },
     "fan": {
@@ -202,9 +205,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropický noční režim"
-      },
-      "zone_target_temperature": {
-        "name": "Požadovaná teplota zóny"
       }
     },
     "select": {
@@ -618,9 +618,6 @@
           "none": "Vypnuto",
           "cupboard": "Do skříně"
         }
-      },
-      "zone_mode": {
-        "name": "Režim zóny"
       }
     },
     "sensor": {
@@ -967,9 +964,6 @@
           "icestatus_run": "Vyrábí led"
         }
       },
-      "zone_temperature": {
-        "name": "Teplota zóny"
-      },
       "zone_water_law_offset": {
         "name": "Zone water law offset"
       },
@@ -1220,9 +1214,6 @@
       },
       "wrinkle_prevent": {
         "name": "Ochrana proti pomačkání"
-      },
-      "zone_power": {
-        "name": "Napájení zóny"
       },
       "away_mode": {
         "name": "Režim nepřítomnosti"

@@ -155,6 +155,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -202,9 +205,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropische nachtmodus"
-      },
-      "zone_target_temperature": {
-        "name": "Doeltemperatuur zone"
       }
     },
     "select": {
@@ -618,9 +618,6 @@
           "none": "Uit",
           "cupboard": "Kastdroog"
         }
-      },
-      "zone_mode": {
-        "name": "Zonemodus"
       }
     },
     "sensor": {
@@ -967,9 +964,6 @@
           "icestatus_run": "IJs maken"
         }
       },
-      "zone_temperature": {
-        "name": "Zonetemperatuur"
-      },
       "zone_water_law_offset": {
         "name": "Zone water law offset"
       },
@@ -1220,9 +1214,6 @@
       },
       "wrinkle_prevent": {
         "name": "Kreukpreventie"
-      },
-      "zone_power": {
-        "name": "Zonevoeding"
       },
       "away_mode": {
         "name": "Afwezigheidsmodus"
