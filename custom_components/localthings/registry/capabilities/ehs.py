@@ -166,13 +166,22 @@ AWAY_MODE = Capability(
 # The cycle and factory-setting blobs used to live here too. Being
 # hex-encoded turned out not to mean opaque -- both decoded cleanly once
 # someone looked, so treat a remaining entry here as "not read yet", not
-# as "unreadable". /availablecontrolsets/vs/0 is the standing lead: its
-# 16-byte payload parses suspiciously well as uint16 BE pairs, one of
-# which matches an FSV value on this unit, but a single device can't tell
-# a real correlation from a coincidence.
+# as "unreadable".
+#
+# /availablecontrolsets/vs/0 is the clearest example of the distinction.
+# Its 16-byte payload is mostly readable: a leading byte, then 5-byte
+# [id][minimum][maximum] records with values x10-scaled, where id 0x01
+# carries /temperatures/indoor/vs/0's 5.0..25.0 bounds and id 0x0B carries
+# /temperatures/dhw/vs/0's 40.0..62.0. It stays ignored not because it
+# can't be read but because everything it says is already said better
+# elsewhere -- those same bounds already drive native_min/native_max on
+# the target-temperature numbers above, straight from the resources that
+# own them. A third record and the trailing bytes remain unexplained, and
+# one device's dump can't separate a real layout from a coincidence
+# anyway.
 # ---------------------------------------------------------------------------
 _EHS_IGNORED = [
-    '/availablecontrolsets/vs/0',  # opaque hex-encoded control-set bitmap (id: EHS)
+    '/availablecontrolsets/vs/0',  # control-range summary, duplicates the zone/DHW bounds
     '/da/softreset/vs/0',          # soft-reset trigger plumbing
     '/diagnosis/vs/0',             # empty {} on this dump
     # /ehscycle/vs/0 is bound -- see ehs_cycle.EHS_CYCLE.
