@@ -157,11 +157,19 @@ AWAY_MODE = Capability(
 )
 
 # ---------------------------------------------------------------------------
-# EHS-scoped coverage: opaque vendor plumbing (hex-encoded factory/cycle/
-# schedule blobs) or resources with no confirmed write contract on this
-# dump, following the same 'don't guess' rule as dehumidifier._DHM_IGNORED.
-# Not in the global ignored.IGNORED since these are EHS-only shapes that
-# would need their own verification on other device families.
+# EHS-scoped coverage: vendor plumbing whose encoding is still unread, or
+# resources with no confirmed write contract on this dump, following the
+# same 'don't guess' rule as dehumidifier._DHM_IGNORED. Not in the global
+# ignored.IGNORED since these are EHS-only shapes that would need their
+# own verification on other device families.
+#
+# The cycle and factory-setting blobs used to live here too. Being
+# hex-encoded turned out not to mean opaque -- both decoded cleanly once
+# someone looked, so treat a remaining entry here as "not read yet", not
+# as "unreadable". /availablecontrolsets/vs/0 is the standing lead: its
+# 16-byte payload parses suspiciously well as uint16 BE pairs, one of
+# which matches an FSV value on this unit, but a single device can't tell
+# a real correlation from a coincidence.
 # ---------------------------------------------------------------------------
 _EHS_IGNORED = [
     '/availablecontrolsets/vs/0',  # opaque hex-encoded control-set bitmap (id: EHS)
