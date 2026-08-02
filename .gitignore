@@ -37,3 +37,7 @@ ha_config/
 
 # Subagent-driven development scratch (ledger, briefs, review packages)
 .superpowers/
+
+# Fork-local workflow notes (branch layout, PR/rebase rituals) — never
+# pushed upstream, see the file itself for what it documents.
+CLAUDE.local.md
