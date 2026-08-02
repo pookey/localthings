@@ -7,17 +7,21 @@ space heating/cooling ("zone1", through /mode/vs/0, /power/vs/0,
 /mode/dhw/vs/0, /power/dhw/vs/0, /temperatures/dhw/vs/0). There's no shared
 vocabulary with the room-AC family in airconditioner.py beyond the DA_AC_
 board prefix -- EHS reports its own /mode/*/vs/0 and /temperatures/*/vs/0
-shapes, not airconditioner.py's HREF_MODE/HREF_TEMP* OCF-pattern hrefs, and
-this integration has no `water_heater` platform yet, so both loops are
-exposed as switch/select/number/sensor rather than a composite climate/
-water_heater card -- same shape as dehumidifier.py's power/mode/humidity
-split, just with two loops instead of one.
+shapes, not airconditioner.py's HREF_MODE/HREF_TEMP* OCF-pattern hrefs.
+
+zone1 has no HA platform with matching semantics (it's a leaving-water-
+temperature setpoint, not a thermostat with HVAC modes airconditioner.py's
+climate.py would fit), so it stays switch/select/number/sensor -- same shape
+as dehumidifier.py's power/mode/humidity split. dhw is a real HA
+water_heater.py -- see DHW below and water_heater.py's module docstring --
+following the same primary-resource-plus-sibling-reads pattern as
+airconditioner.py's CLIMATE/climate.py.
 
 Verified against a real TP1X_DA_AC_EHS_01001_0000 diagnostics dump
 (firmware AEH-WW-TP1-22-AE6000_17260402, TizenRT 3.1 / DAWIT 2.0).
 """
 from ..capability import Capability
-from ..entities import NumberDesc, SelectDesc, SensorDesc, SwitchDesc
+from ..entities import NumberDesc, SelectDesc, SensorDesc, SwitchDesc, WaterHeaterDesc
 from .common import normalize_temp_unit
 
 
@@ -89,49 +93,49 @@ ZONE_TEMPERATURE = Capability(
     ),
 )
 
-DHW_POWER = Capability(
-    href='/power/dhw/vs/0',
+# Canonical dhw resource hrefs. water_heater.py binds the primary HREF_DHW_MODE
+# via DHW below and reads the sibling power/temperature hrefs off the
+# coordinator snapshot -- same primary-plus-siblings shape as
+# airconditioner.py's HREF_MODE/CLIMATE_CONSUMED_HREFS. Declared once here
+# and imported by water_heater.py, so a new sibling read can't drift out of
+# sync with its DHW_CONSUMED_HREFS coverage entry below.
+HREF_DHW_POWER = '/power/dhw/vs/0'              # on/off
+HREF_DHW_MODE = '/mode/dhw/vs/0'                # primary (bound by DHW) -- current_operation
+HREF_DHW_TEMPERATURE = '/temperatures/dhw/vs/0'  # current/target temperature
+
+DHW_CONSUMED_HREFS = [HREF_DHW_POWER, HREF_DHW_TEMPERATURE]
+
+
+def _dhw_write(payload, rep, href=None):
+    """Map a (kind, value) command from the water_heater platform to the
+    (path_segs, body) for that one sub-write -- same contract as
+    airconditioner._climate_write, just across the dhw loop's three
+    resources instead of the AC's power/mode/temperature/wind set."""
+    kind, value = payload
+    if kind == 'power':
+        return (['power', 'dhw', 'vs', '0'],
+                {'x.com.samsung.da.power': 'On' if value else 'Off'})
+    if kind == 'mode':
+        return (['mode', 'dhw', 'vs', '0'], {'x.com.samsung.da.modes': [value]})
+    if kind == 'temperature':
+        return (['temperatures', 'dhw', 'vs', '0'],
+                {'x.com.samsung.da.desired': str(float(value))})
+    return None
+
+
+DHW = Capability(
+    href=HREF_DHW_MODE,
     poll_tier='warm',
     entities=(
-        SwitchDesc(key='dhw_power', field='x.com.samsung.da.power',
-                   icon='mdi:water-boiler',
-                   value_fn=lambda v: v == 'On',
-                   write_fn=lambda p, rep, href=None: (
-                       ['power', 'dhw', 'vs', '0'],
-                       {'x.com.samsung.da.power': 'On' if p == 'On' else 'Off'})),
+        WaterHeaterDesc(key='water_heater', translation_key='dhw',
+                         rep_fn=_first_mode, write_fn=_dhw_write),
     ),
 )
 
-DHW_MODE = Capability(
-    href='/mode/dhw/vs/0',
-    poll_tier='warm',
-    entities=(
-        SelectDesc(key='dhw_mode', rep_fn=_first_mode,
-                   icon='mdi:water-thermometer',
-                   options_field='x.com.samsung.da.supportedModes',
-                   write_fn=lambda p, rep, href=None: (
-                       ['mode', 'dhw', 'vs', '0'], {'x.com.samsung.da.modes': [p]})),
-    ),
-)
-
-DHW_TEMPERATURE = Capability(
-    href='/temperatures/dhw/vs/0',
-    poll_tier='warm',
-    entities=(
-        SensorDesc(key='dhw_temperature', field='x.com.samsung.da.current',
-                   device_class='temperature', unit_fn=_temp_unit,
-                   state_class='measurement', value_fn=_num),
-        NumberDesc(key='dhw_target_temperature', field='x.com.samsung.da.desired',
-                   device_class='temperature', unit_fn=_temp_unit,
-                   entity_category='config', value_fn=_num,
-                   native_min_fn=lambda rep: _num(rep.get('x.com.samsung.da.minimum')) or 40.0,
-                   native_max_fn=lambda rep: _num(rep.get('x.com.samsung.da.maximum')) or 70.0,
-                   step_fn=lambda rep: _num(rep.get('x.com.samsung.da.increment')) or 0.5,
-                   write_fn=lambda p, rep, href=None: (
-                       ['temperatures', 'dhw', 'vs', '0'],
-                       {'x.com.samsung.da.desired': str(float(p))})),
-    ),
-)
+# Power and temperature are read by the composite DHW entity above, not
+# given their own entities -- coverage-only caps so discover() reports no
+# gap (see airconditioner.py's CLIMATE_CONSUMED_HREFS for the same pattern).
+DHW_CONSUMED = [Capability(href=h, poll_tier='warm') for h in DHW_CONSUMED_HREFS]
 
 AWAY_MODE = Capability(
     href='/option/outgoing/vs/0',

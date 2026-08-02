@@ -202,9 +202,6 @@
       },
       "zone_target_temperature": {
         "name": "Doeltemperatuur zone"
-      },
-      "dhw_target_temperature": {
-        "name": "Doeltemperatuur warm water"
       }
     },
     "select": {
@@ -621,9 +618,6 @@
       },
       "zone_mode": {
         "name": "Zonemodus"
-      },
-      "dhw_mode": {
-        "name": "Warmwatermodus"
       }
     },
     "sensor": {
@@ -969,9 +963,6 @@
       },
       "zone_temperature": {
         "name": "Zonetemperatuur"
-      },
-      "dhw_temperature": {
-        "name": "Warmwatertemperatuur"
       }
     },
     "switch": {
@@ -1136,9 +1127,6 @@
       },
       "zone_power": {
         "name": "Zonevoeding"
-      },
-      "dhw_power": {
-        "name": "Warmwatervoeding"
       },
       "away_mode": {
         "name": "Afwezigheidsmodus"

@@ -2,7 +2,7 @@ DOMAIN = "localthings"
 
 PLATFORMS = [
     "sensor", "binary_sensor", "switch", "number", "select", "button",
-    "time", "climate", "fan",
+    "time", "climate", "fan", "water_heater",
 ]
 
 CONF_HOST         = "host"
