@@ -969,6 +969,9 @@
       },
       "zone_temperature": {
         "name": "Teplota zóny"
+      },
+      "zone_water_law_offset": {
+        "name": "Zone water law offset"
       }
     },
     "switch": {
