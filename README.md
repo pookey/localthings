@@ -137,7 +137,7 @@ custom_components/localthings/
   diagnostics.py           Redacted diagnostics download (device state + coverage metadata)
   const.py                 Domain, config keys, probe ports
   entity.py                Base entity wiring capability registry -> HA entity
-  sensor.py / binary_sensor.py / switch.py / number.py / select.py / button.py / time.py / fan.py / climate.py
+  sensor.py / binary_sensor.py / switch.py / number.py / select.py / button.py / time.py / fan.py / climate.py / water_heater.py
                             One module per HA platform
   catalog.py               Reads the shipped translation catalog (which keys/states exist)
   translations/            Config-flow copy + entity name/state translations, one file per

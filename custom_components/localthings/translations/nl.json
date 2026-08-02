@@ -202,6 +202,9 @@
       },
       "tropical_night_mode": {
         "name": "Tropische nachtmodus"
+      },
+      "zone_target_temperature": {
+        "name": "Doeltemperatuur zone"
       }
     },
     "select": {
@@ -615,6 +618,9 @@
           "none": "Uit",
           "cupboard": "Kastdroog"
         }
+      },
+      "zone_mode": {
+        "name": "Zonemodus"
       }
     },
     "sensor": {
@@ -960,6 +966,9 @@
           "icestatus_stop": "Inactief",
           "icestatus_run": "IJs maken"
         }
+      },
+      "zone_temperature": {
+        "name": "Zonetemperatuur"
       }
     },
     "switch": {
@@ -1121,6 +1130,12 @@
       },
       "wrinkle_prevent": {
         "name": "Kreukpreventie"
+      },
+      "zone_power": {
+        "name": "Zonevoeding"
+      },
+      "away_mode": {
+        "name": "Afwezigheidsmodus"
       }
     },
     "time": {
@@ -1141,6 +1156,11 @@
       },
       "night_start": {
         "name": "Start nachtverlichting"
+      }
+    },
+    "water_heater": {
+      "dhw": {
+        "name": "Warm water"
       }
     }
   },

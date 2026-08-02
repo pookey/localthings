@@ -202,6 +202,9 @@
       },
       "tropical_night_mode": {
         "name": "Tropický noční režim"
+      },
+      "zone_target_temperature": {
+        "name": "Požadovaná teplota zóny"
       }
     },
     "select": {
@@ -615,6 +618,9 @@
           "none": "Vypnuto",
           "cupboard": "Do skříně"
         }
+      },
+      "zone_mode": {
+        "name": "Režim zóny"
       }
     },
     "sensor": {
@@ -960,6 +966,9 @@
           "icestatus_stop": "Nečinný",
           "icestatus_run": "Vyrábí led"
         }
+      },
+      "zone_temperature": {
+        "name": "Teplota zóny"
       }
     },
     "switch": {
@@ -1121,6 +1130,12 @@
       },
       "wrinkle_prevent": {
         "name": "Ochrana proti pomačkání"
+      },
+      "zone_power": {
+        "name": "Napájení zóny"
+      },
+      "away_mode": {
+        "name": "Režim nepřítomnosti"
       }
     },
     "time": {
@@ -1141,6 +1156,11 @@
       },
       "night_start": {
         "name": "Začátek nočního osvětlení"
+      }
+    },
+    "water_heater": {
+      "dhw": {
+        "name": "Teplá voda"
       }
     }
   },
