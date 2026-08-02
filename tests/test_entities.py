@@ -1,6 +1,6 @@
 from custom_components.localthings.registry.entities import (
     SensorDesc, BinarySensorDesc, SelectDesc, SwitchDesc, ButtonDesc,
-    NumberDesc, TimeDesc, ClimateDesc, FanDesc, PLATFORM_OF,
+    NumberDesc, TimeDesc, ClimateDesc, EhsZoneClimateDesc, FanDesc, PLATFORM_OF,
 )
 
 
@@ -28,6 +28,8 @@ def test_platform_mapping_covers_all_subclasses():
     assert PLATFORM_OF[NumberDesc] == 'number'
     assert PLATFORM_OF[TimeDesc] == 'time'
     assert PLATFORM_OF[ClimateDesc] == 'climate'
+    # Looked up by exact type(), so a ClimateDesc subclass needs its own entry.
+    assert PLATFORM_OF[EhsZoneClimateDesc] == 'climate'
     assert PLATFORM_OF[FanDesc] == 'fan'
 
 

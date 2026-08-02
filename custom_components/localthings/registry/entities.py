@@ -127,6 +127,18 @@ class ClimateDesc(SamsungEntityDescription):
 
 
 @dataclass(frozen=True, kw_only=True)
+class EhsZoneClimateDesc(ClimateDesc):
+    # Same composite contract as ClimateDesc -- a distinct type only so the
+    # climate platform can tell the two apart. fan.py dispatches its three
+    # entity classes on the bound href; climate.py can't, because the EHS
+    # space-heating zone and the room AC both bind /mode/vs/0
+    # (airconditioner.HREF_MODE == ehs.HREF_ZONE_MODE). Being a *subclass*
+    # means climate.async_setup_entry has to test for it before the plain
+    # `isinstance(desc, ClimateDesc)` branch, which would otherwise swallow it.
+    pass
+
+
+@dataclass(frozen=True, kw_only=True)
 class FanDesc(SamsungEntityDescription):
     # Composite fan entity: reads power from /power/0 and speed/support data
     # from its bound href.  Payloads are (kind, value), like ClimateDesc.
@@ -152,6 +164,9 @@ PLATFORM_OF: dict[type, str] = {
     NumberDesc:       'number',
     TimeDesc:         'time',
     ClimateDesc:      'climate',
+    # Looked up by exact type(), not isinstance -- a ClimateDesc subclass needs
+    # its own entry here or it resolves to no platform at all.
+    EhsZoneClimateDesc: 'climate',
     FanDesc:          'fan',
     WaterHeaterDesc:  'water_heater',
 }

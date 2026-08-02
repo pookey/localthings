@@ -155,6 +155,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -202,9 +205,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropical night mode"
-      },
-      "zone_target_temperature": {
-        "name": "Zone target temperature"
       }
     },
     "select": {
@@ -618,9 +618,6 @@
           "none": "Off",
           "cupboard": "Cupboard"
         }
-      },
-      "zone_mode": {
-        "name": "Zone mode"
       }
     },
     "sensor": {
@@ -966,9 +963,6 @@
           "icestatus_stop": "Idle",
           "icestatus_run": "Making ice"
         }
-      },
-      "zone_temperature": {
-        "name": "Zone temperature"
       }
     },
     "switch": {
@@ -1130,9 +1124,6 @@
       },
       "wrinkle_prevent": {
         "name": "Wrinkle prevent"
-      },
-      "zone_power": {
-        "name": "Zone power"
       },
       "away_mode": {
         "name": "Away mode"

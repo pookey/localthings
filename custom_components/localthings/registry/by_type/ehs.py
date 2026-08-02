@@ -8,6 +8,10 @@ dhw domestic hot water), not airconditioner.py's HREF_MODE/HREF_TEMP* OCF
 pattern -- so nothing from that module is reused here except MUTE_ONCE,
 whose /option/muteonce/vs/0 field shape (`muteonce`) is identical on this
 family's dump.
+
+Each loop is one composite entity -- ZONE is a climate entity and DHW a
+water_heater -- with the loop's power and temperature resources listed here
+purely as coverage, since the composite reads them itself.
 """
 from ..capabilities import airconditioner, common, ehs, ignored
 from ._base import DeviceRegistry, _build
@@ -18,8 +22,8 @@ REGISTRY = DeviceRegistry(
         *ignored.IGNORED,
         *common.UNIVERSAL,
         airconditioner.MUTE_ONCE,
+        ehs.ZONE,
         ehs.ZONE_POWER,
-        ehs.ZONE_MODE,
         ehs.ZONE_TEMPERATURE,
         ehs.DHW,
         *ehs.DHW_CONSUMED,
