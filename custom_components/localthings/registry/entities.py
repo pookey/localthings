@@ -133,6 +133,16 @@ class FanDesc(SamsungEntityDescription):
     write_fn: WriteFn = None
 
 
+@dataclass(frozen=True, kw_only=True)
+class WaterHeaterDesc(SamsungEntityDescription):
+    # Composite water_heater entity: binds one primary resource (its href,
+    # typically an operation-mode resource) but the water_heater platform
+    # reads sibling resources (power, temperature) from the coordinator
+    # snapshot and writes to several of them. Same (kind, value) -> (path_segs,
+    # body) write_fn shape as ClimateDesc/FanDesc.
+    write_fn: WriteFn = None
+
+
 PLATFORM_OF: dict[type, str] = {
     SensorDesc:       'sensor',
     BinarySensorDesc: 'binary_sensor',
@@ -143,4 +153,5 @@ PLATFORM_OF: dict[type, str] = {
     TimeDesc:         'time',
     ClimateDesc:      'climate',
     FanDesc:          'fan',
+    WaterHeaterDesc:  'water_heater',
 }

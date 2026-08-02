@@ -202,9 +202,6 @@
       },
       "zone_target_temperature": {
         "name": "Požadovaná teplota zóny"
-      },
-      "dhw_target_temperature": {
-        "name": "Požadovaná teplota TUV"
       }
     },
     "select": {
@@ -621,9 +618,6 @@
       },
       "zone_mode": {
         "name": "Režim zóny"
-      },
-      "dhw_mode": {
-        "name": "Režim TUV"
       }
     },
     "sensor": {
@@ -969,9 +963,6 @@
       },
       "zone_temperature": {
         "name": "Teplota zóny"
-      },
-      "dhw_temperature": {
-        "name": "Teplota TUV"
       }
     },
     "switch": {
@@ -1136,9 +1127,6 @@
       },
       "zone_power": {
         "name": "Napájení zóny"
-      },
-      "dhw_power": {
-        "name": "Napájení TUV"
       },
       "away_mode": {
         "name": "Režim nepřítomnosti"

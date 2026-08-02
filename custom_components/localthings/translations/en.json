@@ -202,9 +202,6 @@
       },
       "zone_target_temperature": {
         "name": "Zone target temperature"
-      },
-      "dhw_target_temperature": {
-        "name": "DHW target temperature"
       }
     },
     "select": {
@@ -621,9 +618,6 @@
       },
       "zone_mode": {
         "name": "Zone mode"
-      },
-      "dhw_mode": {
-        "name": "DHW mode"
       }
     },
     "sensor": {
@@ -969,9 +963,6 @@
       },
       "zone_temperature": {
         "name": "Zone temperature"
-      },
-      "dhw_temperature": {
-        "name": "DHW temperature"
       }
     },
     "switch": {
@@ -1136,9 +1127,6 @@
       },
       "zone_power": {
         "name": "Zone power"
-      },
-      "dhw_power": {
-        "name": "DHW power"
       },
       "away_mode": {
         "name": "Away mode"

@@ -7,7 +7,7 @@ flatten, and the zone/dhw mode and temperature write contracts.
 from custom_components.localthings.registry.adapter import flatten
 from custom_components.localthings.registry.by_type import for_device_by_model
 from custom_components.localthings.registry.discovery import discover
-from custom_components.localthings.registry.entities import NumberDesc, SelectDesc
+from custom_components.localthings.registry.entities import NumberDesc, SelectDesc, WaterHeaterDesc
 
 from tests.conftest import _load_device
 
@@ -54,8 +54,7 @@ def test_no_unbound_hrefs():
 def test_expected_state_keys_present():
     state = _state()
     for key in ('zone_power', 'zone_mode', 'zone_temperature', 'zone_target_temperature',
-                'dhw_power', 'dhw_mode', 'dhw_temperature', 'dhw_target_temperature',
-                'away_mode', 'mute_once', 'alarm_code', 'energy_kwh'):
+                'water_heater', 'away_mode', 'mute_once', 'alarm_code', 'energy_kwh'):
         assert key in state, key
 
 
@@ -125,46 +124,50 @@ def test_zone_target_temperature_bounds_read_live():
     assert desc.step_fn({}) == 0.5
 
 
-def test_dhw_temperature_reads_current_value():
+def test_water_heater_entity_is_bound():
+    """The composite water_heater entity binds the primary /mode/dhw/vs/0
+    resource -- same primary-plus-siblings shape as the AC's ClimateDesc
+    (see test_airconditioner_capabilities.py's test_climate_entity_is_bound)."""
+    bound, _ = _bound()
+    water_heaters = [b for b in bound if isinstance(b.desc, WaterHeaterDesc)]
+    assert len(water_heaters) == 1
+    assert water_heaters[0].href == '/mode/dhw/vs/0'
+
+
+def test_water_heater_reads_first_mode():
+    """The flattened/golden state exposes the same representative scalar
+    the entity's current_operation is derived from -- see climate.py's
+    _first_mode for the identical pattern on the AC side."""
     state = _state()
-    assert state['dhw_temperature'] == 38.0
+    assert state['water_heater'] == 'Eco'
 
 
-def test_dhw_target_temperature_reads_desired_value():
-    state = _state()
-    assert state['dhw_target_temperature'] == 40.0
+def test_water_heater_write_targets():
+    """DHW.entities[0].write_fn maps each (kind, value) command to the right
+    vendor POST target and body -- power, mode and temperature only, no fan/
+    swing/preset (the AC's climate.py has those; the DHW loop doesn't)."""
+    write = _desc('water_heater').write_fn
+    assert write(('power', True), {}) == (
+        ['power', 'dhw', 'vs', '0'], {'x.com.samsung.da.power': 'On'})
+    assert write(('power', False), {}) == (
+        ['power', 'dhw', 'vs', '0'], {'x.com.samsung.da.power': 'Off'})
+    assert write(('mode', 'Force'), {}) == (
+        ['mode', 'dhw', 'vs', '0'], {'x.com.samsung.da.modes': ['Force']})
+    assert write(('temperature', 45.0), {}) == (
+        ['temperatures', 'dhw', 'vs', '0'], {'x.com.samsung.da.desired': '45.0'})
+    assert write(('bogus', 1), {}) is None
 
 
-def test_dhw_mode_reads_first_mode():
-    state = _state()
-    assert state['dhw_mode'] == 'Eco'
-
-
-def test_dhw_mode_write_contract():
-    desc = _desc('dhw_mode')
-    path, body = desc.write_fn('Force', {})
-    assert path == ['mode', 'dhw', 'vs', '0']
-    assert body == {'x.com.samsung.da.modes': ['Force']}
-
-
-def test_dhw_power_reads_on():
-    state = _state()
-    assert state['dhw_power'] is True
-
-
-def test_dhw_power_write_contract():
-    desc = _desc('dhw_power')
-    path, body = desc.write_fn('Off', {})
-    assert path == ['power', 'dhw', 'vs', '0']
-    assert body == {'x.com.samsung.da.power': 'Off'}
-
-
-def test_dhw_target_temperature_write_contract():
-    desc = _desc('dhw_target_temperature')
-    assert isinstance(desc, NumberDesc)
-    path, body = desc.write_fn('45.0', {})
-    assert path == ['temperatures', 'dhw', 'vs', '0']
-    assert body == {'x.com.samsung.da.desired': '45.0'}
+def test_dhw_power_and_temperature_declared_as_coverage():
+    """/power/dhw/vs/0 and /temperatures/dhw/vs/0 are read by the composite
+    water_heater entity (via water_heater.py's sibling reads), not given
+    their own entities -- declared as no-entity coverage caps so discover()
+    reports no gap, same pattern as the AC's CLIMATE_CONSUMED_HREFS."""
+    reg, _ = _ehs()
+    for href in ('/power/dhw/vs/0', '/temperatures/dhw/vs/0'):
+        caps = reg.capabilities.get(href)
+        assert caps, href
+        assert all(c.entities == () for c in caps), href
 
 
 def test_away_mode_reads_off():

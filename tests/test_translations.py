@@ -128,8 +128,14 @@ def test_no_catalog_carries_unresolved_core_references():
 # The hood fan is its device's primary feature: fan.py sets _attr_name = None
 # so it presents as the device itself, and never reads a catalog name. Same
 # for the ARTIK051 air-purifier's airflow_fan (issue #56) -- ordered speed
-# levels, no presets, same _attr_name = None treatment.
-UNNAMED_DESCRIPTORS = {("fan", "fan"), ("fan", "airflow_fan")}
+# levels, no presets, same _attr_name = None treatment. water_heater.py's
+# DHW entity is the same shape again: _attr_name = None, and its operation
+# states (STATE_ECO/HEAT_PUMP/HIGH_DEMAND/PERFORMANCE/OFF) are all HA's own
+# standard water_heater states, which Home Assistant translates itself via
+# entity_component fallback -- no per-state catalog entry needed here either.
+UNNAMED_DESCRIPTORS = {
+    ("fan", "fan"), ("fan", "airflow_fan"), ("water_heater", "water_heater"),
+}
 
 
 def test_every_descriptor_has_an_entity_catalog_entry():
