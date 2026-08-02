@@ -9,7 +9,7 @@ pattern -- so nothing from that module is reused here except MUTE_ONCE,
 whose /option/muteonce/vs/0 field shape (`muteonce`) is identical on this
 family's dump.
 """
-from ..capabilities import airconditioner, common, ehs, ignored
+from ..capabilities import airconditioner, common, ehs, ehs_cycle, ignored
 from ._base import DeviceRegistry, _build
 
 REGISTRY = DeviceRegistry(
@@ -25,6 +25,7 @@ REGISTRY = DeviceRegistry(
         ehs.DHW_MODE,
         ehs.DHW_TEMPERATURE,
         ehs.AWAY_MODE,
+        ehs_cycle.EHS_CYCLE,
         *ehs.COVERAGE,
     ]),
 )
