@@ -138,7 +138,9 @@ custom_components/localthings/
   const.py                 Domain, config keys, probe ports
   entity.py                Base entity wiring capability registry -> HA entity
   sensor.py / binary_sensor.py / switch.py / number.py / select.py / button.py / time.py / fan.py / climate.py / water_heater.py
-                            One module per HA platform
+                            One module per HA platform. fan.py and climate.py each hold
+                            more than one entity class (range hood / air purifier / legacy
+                            airflow; room AC / EHS heat-pump zone) -- see their docstrings
   catalog.py               Reads the shipped translation catalog (which keys/states exist)
   translations/            Config-flow copy + entity name/state translations, one file per
                             language; en.json is the source of truth (no strings.json —
@@ -153,7 +155,7 @@ custom_components/localthings/
     redact.py                 Strips account/identity data before diagnostics leave HA
     capabilities/             Shared + per-family Capability definitions (common, airconditioner,
                                cooktop, range_hood, dryer, oven, dishwasher, fridge, washer,
-                               laundry, operational, ignored)
+                               laundry, ehs, ehs_cycle, ehs_fsv, operational, ignored)
     by_type/                  One DeviceRegistry per appliance type, composed from capabilities/
 tests/                    Registry composition, discovery, entity descriptors, coordinator/observe
                             behavior, and golden-file regression against captured device dumps

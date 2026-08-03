@@ -17,6 +17,15 @@ CLIMATE capability's `write_fn` maps each `(kind, value)` payload to the right
 applies the optimistic value/settle guard to that same href -- not the bound
 `/mode/vs/0` href -- so one descriptor drives writes to, and gets fresh state
 back for, power, mode, temperature and wind resources alike.
+
+Two device families are served here, by two entity classes:
+`LocalThingsClimate` for the room air conditioner, and
+`LocalThingsEhsZoneClimate` for the space-heating zone of an EHS air-to-water
+heat pump. Unlike fan.py, which tells its three classes apart by bound href,
+these two cannot be -- both families bind `/mode/vs/0`
+(`airconditioner.HREF_MODE == ehs.HREF_ZONE_MODE`). They are dispatched on the
+descriptor type instead, which is the entire reason `EhsZoneClimateDesc`
+exists as a subclass of `ClimateDesc`.
 """
 
 from __future__ import annotations
@@ -82,7 +91,19 @@ from .registry.capabilities.airconditioner import (
     is_legacy_board,
 )
 from .registry.capabilities.common import normalize_temp_unit
-from .registry.entities import ClimateDesc
+
+# The EHS zone1 loop's canonical hrefs, aliased because HREF_ZONE_MODE and the
+# AC's HREF_MODE are the same string -- see the module docstring.
+from .registry.capabilities.ehs import (
+    HREF_ZONE_MODE as EHS_ZONE_MODE_HREF,
+)
+from .registry.capabilities.ehs import (
+    HREF_ZONE_POWER as EHS_ZONE_POWER_HREF,
+)
+from .registry.capabilities.ehs import (
+    HREF_ZONE_TEMPERATURE as EHS_ZONE_TEMPERATURE_HREF,
+)
+from .registry.entities import ClimateDesc, EhsZoneClimateDesc
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -206,11 +227,18 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     coordinator: LocalThingsCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        LocalThingsClimate(coordinator, b)
-        for b in coordinator.bound
-        if isinstance(b.desc, ClimateDesc) and _is_included(b, coordinator)
-    )
+    entities = []
+    for bound in coordinator.bound:
+        if not (isinstance(bound.desc, ClimateDesc) and _is_included(bound, coordinator)):
+            continue
+        # EhsZoneClimateDesc *subclasses* ClimateDesc, so it has to be tested
+        # first -- the plain isinstance above already matched it, and the else
+        # branch would build an AC entity against EHS resources.
+        if isinstance(bound.desc, EhsZoneClimateDesc):
+            entities.append(LocalThingsEhsZoneClimate(coordinator, bound))
+        else:
+            entities.append(LocalThingsClimate(coordinator, bound))
+    async_add_entities(entities)
 
 
 def _first(value):
@@ -659,3 +687,225 @@ class LocalThingsClimate(LocalThingsEntity, ClimateEntity):
                 kind = "preset_legacy" if self._legacy_preset() else "preset"
                 await self.coordinator.async_send_command(self._bound, (kind, code))
                 return
+
+
+# --- EHS air-to-water heat pump: zone1 (space heating/cooling) --------------
+
+# Samsung /mode/vs/0 modes <-> HA HVACMode for the EHS zone1 loop. A much
+# smaller vocabulary than the room AC's above -- no Dry, no fan-only, and no
+# AIComfort. OFF is absent here too, driven by the power resource instead.
+_EHS_ZONE_DEVICE_TO_HVAC: dict[str, HVACMode] = {
+    "Cool": HVACMode.COOL,
+    "Heat": HVACMode.HEAT,
+    "Auto": HVACMode.AUTO,
+}
+# Read side only: boards have been seen spelling these codes with different
+# case, and a lookup miss would drop a mode the unit really reports.
+_EHS_ZONE_DEVICE_TO_HVAC_CI = {k.lower(): v for k, v in _EHS_ZONE_DEVICE_TO_HVAC.items()}
+
+
+class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
+    """Composite climate entity for a Samsung EHS space-heating zone (zone1).
+
+    Structurally this is water_heater.py's LocalThingsWaterHeater with HVAC
+    modes in place of operation modes: it binds `/mode/vs/0` as its primary
+    resource and reads `/power/vs/0` and `/temperatures/indoor/vs/0` off the
+    coordinator snapshot, writing back to all three through the ZONE
+    capability's `write_fn` (ehs._zone_write).
+
+    Two things about the temperature it exposes are worth stating plainly,
+    because a climate card implies room-thermostat semantics that this loop
+    does not have:
+
+    * It is a *leaving-water* (flow) setpoint, not a room setpoint --
+      `/temperatures/indoor/vs/0` reports `type: Water`, `desired` is the
+      water the unit aims to send out, and `current` is what it is actually
+      sending. Modelling that as a climate entity is the settled HA
+      convention for air-to-water heat pumps, but "current temperature" here
+      is not the temperature of any room.
+    * When the unit is running on the water law (weather compensation) the
+      curve computes the flow setpoint and `desired` no longer decides it;
+      the user-facing adjustment is then the water-law offset. So the number
+      on this card can differ from what the unit is really targeting. That
+      was equally true of the `zone_target_temperature` number this entity
+      replaces -- it is a property of the device, not of the entity.
+
+    min/max also track the *current* mode (the unit reports FSV #1011/#1012's
+    cooling range in Cool and #1031/#1032's heating range in Heat), which is
+    why they are read live from the rep on every access. A consequence: right
+    after a Heat<->Cool switch, and before the next poll lands, the target
+    temperature can sit outside [min_temp, max_temp].
+    """
+
+    # Modern climate entities opt out of the deprecated auto-added TURN_ON/OFF.
+    _enable_turn_on_off_backwards_compatibility = False
+
+    def __init__(self, coordinator: LocalThingsCoordinator, bound) -> None:
+        super().__init__(coordinator, bound)
+        # No _attr_name = None here, unlike LocalThingsClimate: the AC *is* the
+        # device, but an EHS runs two loops and neither one is "the device".
+        # This takes the catalog name ("Zone 1") through the descriptor's
+        # translation_key, the same call water_heater.py makes for "Hot water".
+        self._attr_supported_features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
+        )
+        # Raw device codes already logged by _warn_unmapped -- these properties
+        # are read on every coordinator refresh, so an un-deduped warning would
+        # spam the log for any unit reporting a genuinely unrecognized code.
+        self._warned_unmapped: set[str] = set()
+
+    # -- resource helpers ---------------------------------------------------
+
+    def _rep(self, href: str) -> dict:
+        """`href` is one of this module's canonical EHS_ZONE_* constants --
+        translated through this bound entity's own subdevice (issue #177),
+        same as LocalThingsClimate's and water_heater.py's identical helper."""
+        return self.coordinator.resource(self._bound.subdevice.to_actual(href)) or {}
+
+    def _is_on(self) -> bool:
+        power = self._rep(EHS_ZONE_POWER_HREF).get("x.com.samsung.da.power", "")
+        return str(power).lower() == "on"
+
+    def _supported(self) -> list[str]:
+        return list(self._rep(EHS_ZONE_MODE_HREF).get(_SUPPORTED_FIELD) or [])
+
+    def _warn_unmapped(self, code: str) -> None:
+        if code in self._warned_unmapped:
+            return
+        self._warned_unmapped.add(code)
+        _LOGGER.warning(
+            "%s: device zone mode %r has no HA mapping and was dropped; "
+            "please file an issue with your diagnostics dump",
+            self.entity_id,
+            code,
+        )
+
+    # -- temperature --------------------------------------------------------
+
+    @property
+    def temperature_unit(self) -> str:
+        raw = self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.unit")
+        return (
+            UnitOfTemperature.FAHRENHEIT
+            if normalize_temp_unit(raw, "°C") == "°F"
+            else UnitOfTemperature.CELSIUS
+        )
+
+    @property
+    def current_temperature(self):
+        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.current"))
+
+    @property
+    def target_temperature(self):
+        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.desired"))
+
+    def _range(self) -> list | None:
+        """The device's own (minimum, maximum) pair, or None.
+
+        Both ends together or neither, deliberately -- same rule as
+        LocalThingsClimate._range() and water_heater._range(). A board
+        reporting minimum but not maximum would otherwise pair a device
+        minimum with HA's own default maximum, which looks plausible and is
+        silently wrong.
+        """
+        rep = self._rep(EHS_ZONE_TEMPERATURE_HREF)
+        lo = _num(rep.get("x.com.samsung.da.minimum"))
+        hi = _num(rep.get("x.com.samsung.da.maximum"))
+        return [lo, hi] if (lo is not None and hi is not None) else None
+
+    @property
+    def min_temp(self) -> float:
+        r = self._range()
+        return r[0] if r else super().min_temp
+
+    @property
+    def max_temp(self) -> float:
+        r = self._range()
+        return r[1] if r else super().max_temp
+
+    @property
+    def target_temperature_step(self) -> float:
+        # `is None`, not `or` -- see issue #160: `or` collapses a genuine 0
+        # into the fallback.
+        step = _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.increment"))
+        return 0.5 if step is None else step
+
+    # -- hvac mode ----------------------------------------------------------
+
+    def _to_hvac(self, code) -> HVACMode | None:
+        if code is None:
+            return None
+        return _EHS_ZONE_DEVICE_TO_HVAC_CI.get(str(code).lower())
+
+    @property
+    def hvac_mode(self) -> HVACMode:
+        if not self._is_on():
+            return HVACMode.OFF
+        code = _first(self._rep(EHS_ZONE_MODE_HREF).get(_MODES_FIELD))
+        mapped = self._to_hvac(code)
+        if code is not None and mapped is None:
+            self._warn_unmapped(code)
+        # Unlike the AC, don't fall back to AUTO on an unknown code: this loop
+        # is either heating, cooling or deciding for itself, and guessing
+        # "auto" would misreport a unit that is actually heating.
+        return mapped if mapped is not None else HVACMode.OFF
+
+    @property
+    def hvac_modes(self) -> list[HVACMode]:
+        modes = [HVACMode.OFF]
+        for code in self._supported():
+            mapped = self._to_hvac(code)
+            if mapped is None:
+                self._warn_unmapped(code)
+                continue
+            if mapped not in modes:
+                modes.append(mapped)
+        return modes
+
+    def _device_code_for_hvac(self, hvac_mode: HVACMode) -> str | None:
+        """Reverse-resolve against the unit's own supportedModes first, so the
+        code written back is one this board actually accepts (same approach as
+        LocalThingsClimate._device_code_for_hvac)."""
+        for code in self._supported():
+            if self._to_hvac(code) == hvac_mode:
+                return code
+        for code, mapped in _EHS_ZONE_DEVICE_TO_HVAC.items():
+            if mapped == hvac_mode:
+                return code
+        return None
+
+    # -- writes -------------------------------------------------------------
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        # HA's climate.set_temperature service forwards an optional hvac_mode
+        # here; honour it and set it first -- that also powers the loop on when
+        # it was off -- so a dashboard button carrying a mode actually changes
+        # mode instead of only moving the setpoint.
+        hvac_mode = kwargs.get("hvac_mode")
+        if hvac_mode is not None:
+            await self.async_set_hvac_mode(hvac_mode)
+            if hvac_mode == HVACMode.OFF:
+                return
+        temp = kwargs.get("temperature")
+        if temp is None:
+            return
+        await self.coordinator.async_send_command(self._bound, ("temperature", temp))
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        if hvac_mode == HVACMode.OFF:
+            await self.coordinator.async_send_command(self._bound, ("power", False))
+            return
+        device = self._device_code_for_hvac(hvac_mode)
+        if device is None:
+            return
+        if not self._is_on():
+            await self.coordinator.async_send_command(self._bound, ("power", True))
+        await self.coordinator.async_send_command(self._bound, ("mode", device))
+
+    async def async_turn_on(self) -> None:
+        await self.coordinator.async_send_command(self._bound, ("power", True))
+
+    async def async_turn_off(self) -> None:
+        await self.coordinator.async_send_command(self._bound, ("power", False))

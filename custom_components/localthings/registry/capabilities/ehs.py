@@ -9,20 +9,33 @@ vocabulary with the room-AC family in airconditioner.py beyond the DA_AC_
 board prefix -- EHS reports its own /mode/*/vs/0 and /temperatures/*/vs/0
 shapes, not airconditioner.py's HREF_MODE/HREF_TEMP* OCF-pattern hrefs.
 
-zone1 has no HA platform with matching semantics (it's a leaving-water-
-temperature setpoint, not a thermostat with HVAC modes airconditioner.py's
-climate.py would fit), so it stays switch/select/number/sensor -- same shape
-as dehumidifier.py's power/mode/humidity split. dhw is a real HA
-water_heater.py -- see DHW below and water_heater.py's module docstring --
-following the same primary-resource-plus-sibling-reads pattern as
-airconditioner.py's CLIMATE/climate.py.
+Each loop is one composite HA entity, both built the same way -- one primary
+resource bound by a descriptor, its siblings read straight off the coordinator
+snapshot, and a (kind, value) write_fn fanning writes back out across all
+three. That's the same shape airconditioner.py's CLIMATE/climate.py uses.
+zone1 is a climate entity (see ZONE below and climate.py's
+LocalThingsEhsZoneClimate); dhw is a water_heater (see DHW below and
+water_heater.py's module docstring).
+
+zone1 being a climate entity is worth justifying, because it isn't a room
+thermostat: /temperatures/indoor/vs/0 reports `type: Water`, and its `desired`
+is the *leaving-water* (flow) setpoint, with `current` the actual flow
+temperature. The tell is the bounds -- this unit reports 5.0/25.0 while in
+Cool mode, which is exactly FSV #1011/#1012 ("Water Outlet Temp. for Cooling",
+5-25 C by default); they swap to the heating pair #1031/#1032 when the mode
+changes. Modelling a flow-temperature zone as a climate entity is nonetheless
+the settled HA convention for air-to-water heat pumps, and the resources map
+onto it one-for-one (power -> HVACMode.OFF, Cool/Heat/Auto -> COOL/HEAT/AUTO,
+desired/current -> target/current temperature). The one thing it costs is that
+min/max track the *current* mode, so they must be read live from the rep on
+every access rather than baked into the descriptor.
 
 Verified against a real TP1X_DA_AC_EHS_01001_0000 diagnostics dump
 (firmware AEH-WW-TP1-22-AE6000_17260402, TizenRT 3.1 / DAWIT 2.0).
 """
 
 from ..capability import Capability
-from ..entities import NumberDesc, SelectDesc, SensorDesc, SwitchDesc, WaterHeaterDesc
+from ..entities import EhsZoneClimateDesc, SensorDesc, SwitchDesc, WaterHeaterDesc
 from .common import normalize_temp_unit
 
 
@@ -47,80 +60,67 @@ def _temp_unit(rep):
     return normalize_temp_unit(rep.get("x.com.samsung.da.unit"), "°C")
 
 
-def _bounds(rep, default_min, default_max):
-    """The resource's own (minimum, maximum) pair, or the defaults.
-
-    Both ends together or neither -- a board reporting only one would
-    otherwise pair a real device bound with an invented default, which
-    looks plausible and is silently wrong. Same rule as
-    climate._range()/water_heater._range(), and the same reason
-    oven._setpoint_bounds resolves its pair in one place.
-    """
-    lo = _num(rep.get("x.com.samsung.da.minimum"))
-    hi = _num(rep.get("x.com.samsung.da.maximum"))
-    return (lo, hi) if (lo is not None and hi is not None) else (default_min, default_max)
-
-
-def _step(rep, default):
-    """`is None`, not `or` -- `or` collapses a genuine 0 (issue #160)."""
-    step = _num(rep.get("x.com.samsung.da.increment"))
-    return default if step is None else step
+# Canonical zone1 (space heating/cooling) resource hrefs. climate.py binds the
+# primary HREF_ZONE_MODE via ZONE below and reads the sibling power/temperature
+# hrefs off the coordinator snapshot. Declared once here and imported by
+# climate.py, so a new sibling read can't drift out of sync with the
+# entity-less capabilities that give those siblings their coverage -- exactly
+# the arrangement HREF_DHW_* / DHW_CONSUMED_HREFS use for the dhw loop below.
+#
+# HREF_ZONE_MODE collides with airconditioner.HREF_MODE. That's why the zone
+# descriptor is its own EhsZoneClimateDesc type rather than a plain
+# ClimateDesc: climate.py cannot dispatch on the href the way fan.py does.
+HREF_ZONE_POWER = "/power/vs/0"  # on/off -> HVACMode.OFF
+HREF_ZONE_MODE = "/mode/vs/0"  # primary (bound by ZONE) -- hvac_mode
+HREF_ZONE_TEMPERATURE = "/temperatures/indoor/vs/0"  # current/target temperature
 
 
-ZONE_POWER = Capability(
-    href="/power/vs/0",
+def _zone_write(payload, rep, href=None):
+    """Map a (kind, value) command from the climate platform to the
+    (path_segs, body) for that one sub-write -- same contract as
+    _dhw_write below and airconditioner._climate_write, across the zone1
+    loop's three resources."""
+    kind, value = payload
+    if kind == "power":
+        return (["power", "vs", "0"], {"x.com.samsung.da.power": "On" if value else "Off"})
+    if kind == "mode":
+        return (["mode", "vs", "0"], {"x.com.samsung.da.modes": [value]})
+    if kind == "temperature":
+        return (
+            ["temperatures", "indoor", "vs", "0"],
+            {"x.com.samsung.da.desired": str(float(value))},
+        )
+    return None
+
+
+ZONE = Capability(
+    href=HREF_ZONE_MODE,
     poll_tier="warm",
     entities=(
-        SwitchDesc(
-            key="zone_power",
-            field="x.com.samsung.da.power",
-            icon="mdi:radiator",
-            value_fn=lambda v: v == "On",
-            write_fn=lambda p, rep, href=None: (
-                ["power", "vs", "0"],
-                {"x.com.samsung.da.power": "On" if p == "On" else "Off"},
-            ),
+        EhsZoneClimateDesc(
+            key="zone_climate", translation_key="zone1", rep_fn=_first_mode, write_fn=_zone_write
         ),
     ),
 )
 
-ZONE_MODE = Capability(
-    href="/mode/vs/0",
-    poll_tier="warm",
-    entities=(
-        SelectDesc(
-            key="zone_mode",
-            rep_fn=_first_mode,
-            icon="mdi:sun-snowflake-variant",
-            options_field="x.com.samsung.da.supportedModes",
-            write_fn=lambda p, rep, href=None: (
-                ["mode", "vs", "0"],
-                {"x.com.samsung.da.modes": [p]},
-            ),
-        ),
-    ),
-)
+# Power is read by the composite ZONE entity above, not given its own entity
+# -- coverage-only cap so discover() reports no gap, the same shape as
+# DHW_CONSUMED below.
+ZONE_POWER = Capability(href=HREF_ZONE_POWER, poll_tier="warm")
 
-# type=Water/unit=Celsius on this dump names the space-heating loop's flow/
-# room setpoint, not a literal water temperature -- Samsung EHS zone control
-# is leaving-water-temperature-based, same convention as the dhw loop below.
+# Current/target temperature are read by the composite ZONE entity above, not
+# given their own entities. The water-law offset has no equivalent on ZONE --
+# it stays a standalone diagnostic sensor here.
 ZONE_TEMPERATURE = Capability(
-    href="/temperatures/indoor/vs/0",
+    href=HREF_ZONE_TEMPERATURE,
     poll_tier="warm",
     entities=(
-        SensorDesc(
-            key="zone_temperature",
-            field="x.com.samsung.da.current",
-            device_class="temperature",
-            unit_fn=_temp_unit,
-            state_class="measurement",
-            value_fn=_num,
-        ),
         # Water-law (weather-compensation) offset applied to the calculated
         # flow setpoint. 'diagnostic' specifically because it's read-only on
         # this dump -- reclassify to 'config' if/when a write_fn is added.
         # No min/max/step bound to it: the rep's minimum/maximum/increment
-        # fields scope `desired` (see the NumberDesc below), not `offset`.
+        # fields scope `desired` (the composite ZONE entity's target
+        # temperature), not `offset`.
         SensorDesc(
             key="zone_water_law_offset",
             field="x.com.samsung.da.offset",
@@ -129,21 +129,6 @@ ZONE_TEMPERATURE = Capability(
             state_class="measurement",
             entity_category="diagnostic",
             value_fn=_num,
-        ),
-        NumberDesc(
-            key="zone_target_temperature",
-            field="x.com.samsung.da.desired",
-            device_class="temperature",
-            unit_fn=_temp_unit,
-            entity_category="config",
-            value_fn=_num,
-            native_min_fn=lambda rep: _bounds(rep, 5.0, 30.0)[0],
-            native_max_fn=lambda rep: _bounds(rep, 5.0, 30.0)[1],
-            step_fn=lambda rep: _step(rep, 0.5),
-            write_fn=lambda p, rep, href=None: (
-                ["temperatures", "indoor", "vs", "0"],
-                {"x.com.samsung.da.desired": str(float(p))},
-            ),
         ),
     ),
 )

@@ -269,6 +269,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -316,9 +319,6 @@
       },
       "tropical_night_mode": {
         "name": "Modo noche tropical"
-      },
-      "zone_target_temperature": {
-        "name": "Temperatura objetivo de zona"
       }
     },
     "select": {
@@ -732,9 +732,6 @@
           "none": "Desactivado",
           "cupboard": "Armario"
         }
-      },
-      "zone_mode": {
-        "name": "Modo de zona"
       }
     },
     "sensor": {
@@ -1081,9 +1078,6 @@
       "auto_clean_progress": {
         "name": "Progreso de limpieza automática"
       },
-      "zone_temperature": {
-        "name": "Temperatura de zona"
-      },
       "zone_water_law_offset": {
         "name": "Zone water law offset"
       },
@@ -1337,9 +1331,6 @@
       },
       "away_mode": {
         "name": "Modo ausencia"
-      },
-      "zone_power": {
-        "name": "Alimentación de zona"
       }
     },
     "time": {
