@@ -116,6 +116,20 @@ ZONE_TEMPERATURE = Capability(
             state_class="measurement",
             value_fn=_num,
         ),
+        # Water-law (weather-compensation) offset applied to the calculated
+        # flow setpoint. 'diagnostic' specifically because it's read-only on
+        # this dump -- reclassify to 'config' if/when a write_fn is added.
+        # No min/max/step bound to it: the rep's minimum/maximum/increment
+        # fields scope `desired` (see the NumberDesc below), not `offset`.
+        SensorDesc(
+            key="zone_water_law_offset",
+            field="x.com.samsung.da.offset",
+            device_class="temperature",
+            unit_fn=_temp_unit,
+            state_class="measurement",
+            entity_category="diagnostic",
+            value_fn=_num,
+        ),
         NumberDesc(
             key="zone_target_temperature",
             field="x.com.samsung.da.desired",
@@ -206,18 +220,35 @@ AWAY_MODE = Capability(
 )
 
 # ---------------------------------------------------------------------------
-# EHS-scoped coverage: opaque vendor plumbing (hex-encoded factory/cycle/
-# schedule blobs) or resources with no confirmed write contract on this
-# dump, following the same 'don't guess' rule as dehumidifier._DHM_IGNORED.
-# Not in the global ignored.IGNORED since these are EHS-only shapes that
-# would need their own verification on other device families.
+# EHS-scoped coverage: vendor plumbing whose encoding is still unread, or
+# resources with no confirmed write contract on this dump, following the
+# same 'don't guess' rule as dehumidifier._DHM_IGNORED. Not in the global
+# ignored.IGNORED since these are EHS-only shapes that would need their
+# own verification on other device families.
+#
+# The cycle and factory-setting blobs used to live here too. Being
+# hex-encoded turned out not to mean opaque -- both decoded cleanly once
+# someone looked, so treat a remaining entry here as "not read yet", not
+# as "unreadable".
+#
+# /availablecontrolsets/vs/0 is the clearest example of the distinction.
+# Its 16-byte payload is mostly readable: a leading byte, then 5-byte
+# [id][minimum][maximum] records with values x10-scaled, where id 0x01
+# carries /temperatures/indoor/vs/0's 5.0..25.0 bounds and id 0x0B carries
+# /temperatures/dhw/vs/0's 40.0..62.0. It stays ignored not because it
+# can't be read but because everything it says is already said better
+# elsewhere -- those same bounds already drive native_min/native_max on
+# the target-temperature numbers above, straight from the resources that
+# own them. A third record and the trailing bytes remain unexplained, and
+# one device's dump can't separate a real layout from a coincidence
+# anyway.
 # ---------------------------------------------------------------------------
 _EHS_IGNORED = [
-    "/availablecontrolsets/vs/0",  # opaque hex-encoded control-set bitmap (id: EHS)
+    "/availablecontrolsets/vs/0",  # control-range summary, duplicates the zone/DHW bounds
     "/da/softreset/vs/0",  # soft-reset trigger plumbing
     "/diagnosis/vs/0",  # empty {} on this dump
-    "/ehscycle/vs/0",  # opaque hex-encoded indoor/outdoor cycle log
-    "/ehsfsv/vs/0",  # opaque hex-encoded factory setting values
+    # /ehscycle/vs/0 is bound -- see ehs_cycle.EHS_CYCLE.
+    # /ehsfsv/vs/0 is bound -- see ehs_fsv.EHS_FSV.
     "/option/dhwdisplay/vs/0",  # front-panel DHW-display show/hide, cosmetic only
     "/reserverulesets/vs/0",  # opaque hex-encoded schedule reservation blob
     "/sac/installationinfo/vs/0",  # static outdoor/indoor installation info, diagnostic only
