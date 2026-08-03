@@ -90,14 +90,19 @@ from .registry.capabilities.airconditioner import (
 from .registry.capabilities.airconditioner import (
     is_legacy_board,
 )
+from .registry.capabilities.common import normalize_temp_unit
+
 # The EHS zone1 loop's canonical hrefs, aliased because HREF_ZONE_MODE and the
 # AC's HREF_MODE are the same string -- see the module docstring.
 from .registry.capabilities.ehs import (
     HREF_ZONE_MODE as EHS_ZONE_MODE_HREF,
+)
+from .registry.capabilities.ehs import (
     HREF_ZONE_POWER as EHS_ZONE_POWER_HREF,
+)
+from .registry.capabilities.ehs import (
     HREF_ZONE_TEMPERATURE as EHS_ZONE_TEMPERATURE_HREF,
 )
-from .registry.capabilities.common import normalize_temp_unit
 from .registry.entities import ClimateDesc, EhsZoneClimateDesc
 
 _LOGGER = logging.getLogger(__name__)
@@ -690,15 +695,13 @@ class LocalThingsClimate(LocalThingsEntity, ClimateEntity):
 # smaller vocabulary than the room AC's above -- no Dry, no fan-only, and no
 # AIComfort. OFF is absent here too, driven by the power resource instead.
 _EHS_ZONE_DEVICE_TO_HVAC: dict[str, HVACMode] = {
-    'Cool': HVACMode.COOL,
-    'Heat': HVACMode.HEAT,
-    'Auto': HVACMode.AUTO,
+    "Cool": HVACMode.COOL,
+    "Heat": HVACMode.HEAT,
+    "Auto": HVACMode.AUTO,
 }
 # Read side only: boards have been seen spelling these codes with different
 # case, and a lookup miss would drop a mode the unit really reports.
-_EHS_ZONE_DEVICE_TO_HVAC_CI = {
-    k.lower(): v for k, v in _EHS_ZONE_DEVICE_TO_HVAC.items()
-}
+_EHS_ZONE_DEVICE_TO_HVAC_CI = {k.lower(): v for k, v in _EHS_ZONE_DEVICE_TO_HVAC.items()}
 
 
 class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
@@ -762,8 +765,8 @@ class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
         return self.coordinator.resource(self._bound.subdevice.to_actual(href)) or {}
 
     def _is_on(self) -> bool:
-        power = self._rep(EHS_ZONE_POWER_HREF).get('x.com.samsung.da.power', '')
-        return str(power).lower() == 'on'
+        power = self._rep(EHS_ZONE_POWER_HREF).get("x.com.samsung.da.power", "")
+        return str(power).lower() == "on"
 
     def _supported(self) -> list[str]:
         return list(self._rep(EHS_ZONE_MODE_HREF).get(_SUPPORTED_FIELD) or [])
@@ -775,25 +778,28 @@ class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
         _LOGGER.warning(
             "%s: device zone mode %r has no HA mapping and was dropped; "
             "please file an issue with your diagnostics dump",
-            self.entity_id, code,
+            self.entity_id,
+            code,
         )
 
     # -- temperature --------------------------------------------------------
 
     @property
     def temperature_unit(self) -> str:
-        raw = self._rep(EHS_ZONE_TEMPERATURE_HREF).get('x.com.samsung.da.unit')
-        return (UnitOfTemperature.FAHRENHEIT
-                if normalize_temp_unit(raw, '°C') == '°F'
-                else UnitOfTemperature.CELSIUS)
+        raw = self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.unit")
+        return (
+            UnitOfTemperature.FAHRENHEIT
+            if normalize_temp_unit(raw, "°C") == "°F"
+            else UnitOfTemperature.CELSIUS
+        )
 
     @property
     def current_temperature(self):
-        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get('x.com.samsung.da.current'))
+        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.current"))
 
     @property
     def target_temperature(self):
-        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get('x.com.samsung.da.desired'))
+        return _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.desired"))
 
     def _range(self) -> list | None:
         """The device's own (minimum, maximum) pair, or None.
@@ -805,8 +811,8 @@ class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
         silently wrong.
         """
         rep = self._rep(EHS_ZONE_TEMPERATURE_HREF)
-        lo = _num(rep.get('x.com.samsung.da.minimum'))
-        hi = _num(rep.get('x.com.samsung.da.maximum'))
+        lo = _num(rep.get("x.com.samsung.da.minimum"))
+        hi = _num(rep.get("x.com.samsung.da.maximum"))
         return [lo, hi] if (lo is not None and hi is not None) else None
 
     @property
@@ -823,7 +829,7 @@ class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
     def target_temperature_step(self) -> float:
         # `is None`, not `or` -- see issue #160: `or` collapses a genuine 0
         # into the fallback.
-        step = _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get('x.com.samsung.da.increment'))
+        step = _num(self._rep(EHS_ZONE_TEMPERATURE_HREF).get("x.com.samsung.da.increment"))
         return 0.5 if step is None else step
 
     # -- hvac mode ----------------------------------------------------------
@@ -877,29 +883,29 @@ class LocalThingsEhsZoneClimate(LocalThingsEntity, ClimateEntity):
         # here; honour it and set it first -- that also powers the loop on when
         # it was off -- so a dashboard button carrying a mode actually changes
         # mode instead of only moving the setpoint.
-        hvac_mode = kwargs.get('hvac_mode')
+        hvac_mode = kwargs.get("hvac_mode")
         if hvac_mode is not None:
             await self.async_set_hvac_mode(hvac_mode)
             if hvac_mode == HVACMode.OFF:
                 return
-        temp = kwargs.get('temperature')
+        temp = kwargs.get("temperature")
         if temp is None:
             return
-        await self.coordinator.async_send_command(self._bound, ('temperature', temp))
+        await self.coordinator.async_send_command(self._bound, ("temperature", temp))
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         if hvac_mode == HVACMode.OFF:
-            await self.coordinator.async_send_command(self._bound, ('power', False))
+            await self.coordinator.async_send_command(self._bound, ("power", False))
             return
         device = self._device_code_for_hvac(hvac_mode)
         if device is None:
             return
         if not self._is_on():
-            await self.coordinator.async_send_command(self._bound, ('power', True))
-        await self.coordinator.async_send_command(self._bound, ('mode', device))
+            await self.coordinator.async_send_command(self._bound, ("power", True))
+        await self.coordinator.async_send_command(self._bound, ("mode", device))
 
     async def async_turn_on(self) -> None:
-        await self.coordinator.async_send_command(self._bound, ('power', True))
+        await self.coordinator.async_send_command(self._bound, ("power", True))
 
     async def async_turn_off(self) -> None:
-        await self.coordinator.async_send_command(self._bound, ('power', False))
+        await self.coordinator.async_send_command(self._bound, ("power", False))
