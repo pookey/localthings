@@ -34,3 +34,7 @@ local-tools/
 
 # HA dev instance — persisted config and secrets
 ha_config/
+
+# Fork-local workflow notes (branch layout, PR/rebase rituals) — never
+# pushed upstream, see the file itself for what it documents.
+CLAUDE.local.md
