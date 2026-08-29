@@ -9,7 +9,12 @@ from custom_components.localthings.registry.adapter import flatten
 from custom_components.localthings.registry.by_type import for_device_by_model
 from custom_components.localthings.registry.capabilities import ehs_cycle, ehs_fsv
 from custom_components.localthings.registry.discovery import discover
-from custom_components.localthings.registry.entities import NumberDesc, SelectDesc, WaterHeaterDesc
+from custom_components.localthings.registry.entities import (
+    PLATFORM_OF,
+    ClimateDesc,
+    EhsZoneClimateDesc,
+    WaterHeaterDesc,
+)
 from tests.conftest import _load_device
 
 
@@ -56,10 +61,7 @@ def test_no_unbound_hrefs():
 def test_expected_state_keys_present():
     state = _state()
     for key in (
-        "zone_power",
-        "zone_mode",
-        "zone_temperature",
-        "zone_target_temperature",
+        "zone_climate",
         "zone_water_law_offset",
         "water_heater",
         "away_mode",
@@ -82,87 +84,81 @@ def test_expected_state_keys_present():
         assert key in state, key
 
 
-def test_zone_temperature_reads_current_value():
+def test_zone_split_entities_are_gone():
+    """zone1's power/mode/setpoint/current split was folded into the single
+    composite climate entity, the same way #253 folded the dhw split into the
+    water_heater. Leaving any of them bound would give HA two writable paths
+    to the same resource."""
     state = _state()
-    assert state["zone_temperature"] == 30.0
+    for key in ("zone_power", "zone_mode", "zone_temperature", "zone_target_temperature"):
+        assert key not in state, key
 
 
-def test_zone_target_temperature_reads_desired_value():
+def test_zone_climate_entity_is_bound():
+    """The composite climate entity binds the primary /mode/vs/0 resource --
+    same primary-plus-siblings shape as the DHW water_heater below and the
+    AC's ClimateDesc."""
+    bound, _ = _bound()
+    zones = [b for b in bound if isinstance(b.desc, EhsZoneClimateDesc)]
+    assert len(zones) == 1
+    assert zones[0].href == "/mode/vs/0"
+
+
+def test_zone_climate_is_its_own_descriptor_type():
+    """Not a plain ClimateDesc: climate.py dispatches on the descriptor type
+    because the EHS zone and the room AC bind the same /mode/vs/0 href and
+    cannot be told apart by href the way fan.py's classes are."""
+    desc = _desc("zone_climate")
+    assert type(desc) is EhsZoneClimateDesc
+    assert isinstance(desc, ClimateDesc)
+    assert PLATFORM_OF[EhsZoneClimateDesc] == "climate"
+
+
+def test_zone_climate_reads_first_mode():
+    """The flattened/golden state exposes the same representative scalar the
+    entity's hvac_mode is derived from."""
     state = _state()
-    assert state["zone_target_temperature"] == 5.0
+    assert state["zone_climate"] == "Cool"
 
 
-def test_zone_mode_reads_first_mode():
-    state = _state()
-    assert state["zone_mode"] == "Cool"
+def test_zone_climate_write_targets():
+    """ZONE.entities[0].write_fn maps each (kind, value) command to the right
+    vendor POST target and body -- power, mode and temperature only; zone1
+    has no fan/swing/preset for the AC's climate.py to drive."""
+    write = _desc("zone_climate").write_fn
+    assert write(("power", True), {}) == (["power", "vs", "0"], {"x.com.samsung.da.power": "On"})
+    assert write(("power", False), {}) == (
+        ["power", "vs", "0"],
+        {"x.com.samsung.da.power": "Off"},
+    )
+    assert write(("mode", "Heat"), {}) == (
+        ["mode", "vs", "0"],
+        {"x.com.samsung.da.modes": ["Heat"]},
+    )
+    assert write(("temperature", 21.5), {}) == (
+        ["temperatures", "indoor", "vs", "0"],
+        {"x.com.samsung.da.desired": "21.5"},
+    )
+    assert write(("bogus", 1), {}) is None
 
 
-def test_zone_mode_select_options_come_from_live_supported_modes():
-    """Options are read live from x.com.samsung.da.supportedModes, not a
-    hardcoded tuple -- so a future firmware with a different mode set is
-    handled automatically."""
-    desc = _desc("zone_mode")
-    assert isinstance(desc, SelectDesc)
-    assert desc.options_field == "x.com.samsung.da.supportedModes"
-    assert desc.options == ()
+def test_zone_power_and_temperature_declared_as_coverage():
+    """/power/vs/0 and /temperatures/indoor/vs/0 are read by the composite
+    climate entity (via climate.py's sibling reads) rather than getting their
+    own control entities, so they only need no-entity coverage caps for
+    discover() to report no gap.
 
-
-def test_zone_mode_write_contract():
-    desc = _desc("zone_mode")
-    path, body = desc.write_fn("Heat", {})
-    assert path == ["mode", "vs", "0"]
-    assert body == {"x.com.samsung.da.modes": ["Heat"]}
-
-
-def test_zone_power_reads_off():
-    state = _state()
-    assert state["zone_power"] is False
-
-
-def test_zone_power_write_contract():
-    desc = _desc("zone_power")
-    path, body = desc.write_fn("On", {})
-    assert path == ["power", "vs", "0"]
-    assert body == {"x.com.samsung.da.power": "On"}
-
-
-def test_zone_target_temperature_write_contract():
-    desc = _desc("zone_target_temperature")
-    assert isinstance(desc, NumberDesc)
-    path, body = desc.write_fn("21.5", {})
-    assert path == ["temperatures", "indoor", "vs", "0"]
-    assert body == {"x.com.samsung.da.desired": "21.5"}
-
-
-def test_zone_target_temperature_bounds_read_live():
-    """min/max/step come from the device's own resource fields rather than
-    a hardcoded constant -- see the adding-device-support skill's 'never
-    hard-code the one dump's values' section."""
-    desc = _desc("zone_target_temperature")
-    rep = {"x.com.samsung.da.minimum": "5.0", "x.com.samsung.da.maximum": "25.0"}
-    assert desc.native_min_fn(rep) == 5.0
-    assert desc.native_max_fn(rep) == 25.0
-    assert desc.step_fn({"x.com.samsung.da.increment": "0.5"}) == 0.5
-    # No live field: falls back to a sane default rather than raising.
-    assert desc.native_min_fn({}) == 5.0
-    assert desc.native_max_fn({}) == 30.0
-    assert desc.step_fn({}) == 0.5
-
-
-def test_zone_target_temperature_bounds_fall_back_together():
-    """One end without the other is not a usable range: pairing a real
-    device minimum with an invented default maximum looks plausible and is
-    silently wrong, so a half-reported range falls back whole."""
-    desc = _desc("zone_target_temperature")
-    half = {"x.com.samsung.da.minimum": "10.0"}
-    assert desc.native_min_fn(half) == 5.0
-    assert desc.native_max_fn(half) == 30.0
-
-
-def test_zone_target_temperature_zero_increment_is_not_collapsed():
-    """`or` would turn a genuine 0 into the 0.5 default (issue #160)."""
-    desc = _desc("zone_target_temperature")
-    assert desc.step_fn({"x.com.samsung.da.increment": "0"}) == 0.0
+    /temperatures/indoor/vs/0 may still carry read-only sensors (the
+    water-law offset lives there); what matters is that nothing binds the
+    zone's power, mode or setpoint a second time.
+    """
+    reg, _ = _ehs()
+    caps = reg.capabilities.get("/power/vs/0")
+    assert caps
+    assert all(c.entities == () for c in caps)
+    for href in ("/power/vs/0", "/temperatures/indoor/vs/0"):
+        keys = {d.key for c in reg.capabilities.get(href, []) for d in c.entities}
+        assert keys.isdisjoint({"zone_power", "zone_mode", "zone_target_temperature"}), href
 
 
 def test_water_heater_entity_is_bound():

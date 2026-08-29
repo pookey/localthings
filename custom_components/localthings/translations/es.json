@@ -369,6 +369,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -419,9 +422,6 @@
       },
       "tropical_night_mode": {
         "name": "Modo noche tropical"
-      },
-      "zone_target_temperature": {
-        "name": "Temperatura objetivo de zona"
       }
     },
     "select": {
@@ -988,9 +988,6 @@
           "cupboard": "Armario"
         }
       },
-      "zone_mode": {
-        "name": "Modo de zona"
-      },
       "watertank_light_color": {
         "name": "Color de la luz del depósito de agua",
         "state": {
@@ -1430,9 +1427,6 @@
       "auto_clean_progress": {
         "name": "Progreso de limpieza automática"
       },
-      "zone_temperature": {
-        "name": "Temperatura de zona"
-      },
       "watertank_full_alarm_status": {
         "name": "Estado de alarma de depósito de agua lleno"
       },
@@ -1722,9 +1716,6 @@
       },
       "away_mode": {
         "name": "Modo ausencia"
-      },
-      "zone_power": {
-        "name": "Alimentación de zona"
       },
       "watertank_light": {
         "name": "Luz del depósito de agua"

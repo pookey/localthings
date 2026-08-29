@@ -172,6 +172,9 @@
             }
           }
         }
+      },
+      "zone1": {
+        "name": "Zone 1"
       }
     },
     "fan": {
@@ -219,9 +222,6 @@
       },
       "tropical_night_mode": {
         "name": "Tropennacht-Modus"
-      },
-      "zone_target_temperature": {
-        "name": "Zonen-Zieltemperatur"
       },
       "good_sleep": {
         "name": "Guter Schlaf"
@@ -754,9 +754,6 @@
           "cupboard": "Schranktrocken"
         }
       },
-      "zone_mode": {
-        "name": "Zonenmodus"
-      },
       "watertank_light_color": {
         "name": "Wassertank-Lichtfarbe",
         "state": {
@@ -1227,9 +1224,6 @@
           "icestatus_run": "Eisbereitung"
         }
       },
-      "zone_temperature": {
-        "name": "Zonentemperatur"
-      },
       "watertank_full_alarm_status": {
         "name": "Wassertank-voll-Alarmstatus"
       },
@@ -1513,9 +1507,6 @@
       },
       "wrinkle_prevent": {
         "name": "Knitterschutz"
-      },
-      "zone_power": {
-        "name": "Zonen-Ein/Aus"
       },
       "away_mode": {
         "name": "Abwesenheitsmodus"

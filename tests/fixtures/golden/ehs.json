@@ -34,10 +34,7 @@
     "outdoor_temperature",
     "suction_temperature",
     "water_heater",
-    "zone_mode",
-    "zone_power",
-    "zone_target_temperature",
-    "zone_temperature",
+    "zone_climate",
     "zone_water_law_offset"
   ]
 }
