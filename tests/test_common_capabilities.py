@@ -392,6 +392,26 @@ class TestEnergyMeter:
     def test_href(self):
         assert common.ENERGY_METER.href == "/energy/consumption/vs/0"
 
+    def test_negative_counters_read_as_unknown(self):
+        """A meterless board's "-1" sentinel (cumulativeSavedPower on the
+        TP1X RAC fixtures) must not round to a -0.0 total, on any counter."""
+        for key in (
+            "energy_kwh",
+            "power_energy_kwh",
+            "energy_saved_kwh",
+            "energy_last_month_kwh",
+            "energy_this_month_kwh",
+        ):
+            desc = next(e for e in common.ENERGY_METER.entities if e.key == key)
+            assert desc.value_fn("-1") is None, key
+            assert desc.value_fn("1500") == 1.5, key
+
+    def test_zero_saved_power_stays_a_real_reading(self):
+        """Only the lifetime total treats 0 as unknown (#488); a zero savings
+        or monthly total is real."""
+        saved = next(e for e in common.ENERGY_METER.entities if e.key == "energy_saved_kwh")
+        assert saved.value_fn("0") == 0.0
+
     def test_power_clamps_negative(self):
         pw = next(e for e in common.ENERGY_METER.entities if e.key == "power_watts")
         assert pw.value_fn(-500.0) == 0.0

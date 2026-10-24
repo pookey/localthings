@@ -52,8 +52,12 @@ def clamp_power(v):
 
 
 def wh_to_kwh(v):
+    """Wh to kWh for an energy counter. A counter can't run negative, so a
+    negative reading is a meterless board's "-1" sentinel and reads as
+    unknown rather than rounding to a plausible -0.0 (cumulativeSavedPower
+    on the TP1X RAC fixtures)."""
     n = _num(v)
-    return round(n / 1000.0, 2) if n is not None else None
+    return round(n / 1000.0, 2) if n is not None and n >= 0 else None
 
 
 def lifetime_wh_to_kwh(v):
